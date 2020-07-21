@@ -48,8 +48,8 @@ RUN \
 # build structure
   echo '=== creating build structure ===' && \
   time { \
-    for folder in '/licenses'; do install --directory --owner=${__USER__} --group=${__USER__} --mode=0755 "${__BUILD_DIR__}${folder}"; done && \
-    for folder in '/tmp' "${__DATA_DIR__}"; do install --directory --owner=${__USER__} --group=${__USER__} --mode=1777 "${__BUILD_DIR__}${folder}"; done ; \
+    for folder in '/licenses'; do install --directory --owner="${__USER__}" --group="${__USER__}" --mode=0755 "${__BUILD_DIR__}${folder}"; done && \
+    for folder in '/tmp' "${__DATA_DIR__}"; do install --directory --owner="${__USER__}" --group="${__USER__}" --mode=1777 "${__BUILD_DIR__}${folder}"; done ; \
   } && \
 # dependencies
   echo '=== instaling dependencies ===' && \
