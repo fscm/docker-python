@@ -4,8 +4,10 @@ A Docker image with Python.
 
 ## Supported tags
 
-- `3.8.4-centos`, `centos`
-- `3.8.4-debian`, `3.8.4`, `debian`, `latest`
+- `3.8.4-centos`
+- `3.8.4-debian`, `3.8.4`
+- `3.8.5-centos`, `centos`
+- `3.8.5-debian`, `3.8.5`, `debian`, `latest`
 
 ## What is Python?
 
