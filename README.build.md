@@ -28,8 +28,8 @@ Docker installation instructions can be found
 In order to create a Docker image using this Dockerfiles you need to run the
 `docker` command with a few options.
 
-```
-docker image build --force-rm --no-cache --quiet --file Dockerfile.<VARIANT> --tag <USER>/<IMAGE>:<TAG> <PATH>
+```shell
+docker image build --force-rm --no-cache --quiet --file <VARIANT>/Dockerfile --tag <USER>/<IMAGE>:<TAG> <PATH>
 ```
 
 * `<USER>` - *[required]* The user that will own the container image (e.g.: "johndoe").
@@ -40,20 +40,20 @@ docker image build --force-rm --no-cache --quiet --file Dockerfile.<VARIANT> --t
 
 A build example:
 
-```
-docker image build --force-rm --no-cache --quiet --file Dockerfile.debian --tag johndoe/my_python:debian .
+```shell
+docker image build --force-rm --no-cache --quiet --file debian/Dockerfile --tag johndoe/my_python:debian .
 ```
 
-To clean any _<none>_ image(s) left by the build process the following
+To clean any _`none`_ image(s) left by the build process the following
 command can be used:
 
-```
+```shell
 docker image rm `docker image ls --filter "dangling=true" --quiet`
 ```
 
 You can also use the following command to achieve the same result:
 
-```
+```shell
 docker image prune -f
 ```
 
@@ -61,7 +61,7 @@ docker image prune -f
 
 Additional tags can be added to the image using the following command:
 
-```
+```shell
 docker image tag <image_id> <user>/<image>:<extra_tag>
 ```
 
@@ -71,19 +71,19 @@ After adding an image to Docker, that image can be pushed to a Docker registry..
 
 Make sure that you are logged in to the service.
 
-```
+```shell
 docker login
 ```
 
 When logged in, an image can be pushed using the following command:
 
-```
+```shell
 docker image push <user>/<image>:<tag>
 ```
 
 Extra tags can also be pushed.
 
-```
+```shell
 docker image push <user>/<image>:<extra_tag>
 ```
 

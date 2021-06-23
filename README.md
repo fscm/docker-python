@@ -4,10 +4,8 @@ A Docker image with Python.
 
 ## Supported tags
 
-- `3.8.4-centos`
-- `3.8.4-debian`, `3.8.4`
-- `3.8.5-centos`, `centos`
-- `3.8.5-debian`, `3.8.5`, `debian`, `latest`
+* `3-centos`, `centos`
+* `3-debian`, `3`, `debian`, `latest`
 
 ## What is Python?
 
@@ -34,19 +32,19 @@ Docker installation instructions can be found
 To start a container with this image - and have a shell - use the following
 command (the container will be deleted after exiting the shell):
 
-```
+```shell
 docker container run --rm --interactive --tty fscm/python
 ```
 
-This will allow you to run any of the Python tools inside the this image. To
-take the most out of this method you can add you project code to the running
+This will allow you to run any of the Python tools inside this image. To take
+the most out of this method you can add your project code to the running
 container by defining your project folder as a working folder inside the
 container.
 
 To start a container with this image and your project folder available inside
 use the following command:
 
-```
+```shell
 docker container run --volume LOCAL_PROJECT_PATH:/work:rw --rm --interactive --tty fscm/python
 ```
 
