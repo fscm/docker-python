@@ -5,7 +5,7 @@ A Docker image with Python.
 ## Supported tags
 
 * `3-centos`, `centos`
-* `3-debian`, `3`, `debian`, `latest`
+* `3-debian`, `debian`, `3`, `latest`
 
 ## What is Python?
 
