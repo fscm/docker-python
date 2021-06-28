@@ -1,27 +1,27 @@
 # global args
 ARG __BUILD_DIR__="/build"
-ARG __DATA_DIR__="/work"
+ARG __WORK_DIR__="/work"
 
 
 
 FROM fscm/debian:buster as build
 
 ARG __BUILD_DIR__
-ARG __DATA_DIR__
-ARG PYTHON3_VERSION="3.8.5"
+ARG __WORK_DIR__
+ARG PYTHON3_VERSION="3.9.5"
 ARG __USER__="root"
-ARG __WORK_DIR__="/work"
 ARG __SOURCE_DIR__="${__WORK_DIR__}/src"
 
 ENV \
   LANG="C.UTF-8" \
   LC_ALL="C.UTF-8" \
+  DEBCONF_NONINTERACTIVE_SEEN="true" \
   DEBIAN_FRONTEND="noninteractive"
 
 USER ${__USER__}
 
 #COPY --chown="${__USER__}":${__USER__} "LICENSE" "files/" "${__WORK_DIR__}/"
-COPY "LICENSE" "files/" "${__WORK_DIR__}/"
+COPY "LICENSE" "files/" "${__WORK_DIR__}"/
 
 WORKDIR "${__WORK_DIR__}"
 
@@ -32,15 +32,11 @@ RUN \
   echo '=== setting build env ===' && \
   time { \
     set +h && \
+    export __ARCH__="$(arch | sed 's/_/-/g')" && \
     export __NPROC__="$(getconf _NPROCESSORS_ONLN || echo 1)" && \
-    export CFLAGS='-O2 -g0 -s -w -pipe -m64 -mtune=generic -fno-semantic-interposition -DNDEBUG -D_GNU_SOURCE -fPIC -fwrapv' && \
-    export CFLAGS_NODIST='-O2 -g0 -s -w -pipe -m64 -mtune=generic -fno-semantic-interposition -DNDEBUG -D_GNU_SOURCE -fPIC -fwrapv' && \
-    export CPPFLAGS='-I/usr/include/x86_64-linux-gnu' && \
-    export LDFLAGS='-g0 -Wl,-z,relro -Wl,-z,now -Wl,--strip-all -L/usr/lib/x86_64-linux-gnu' && \
-    export LDFLAGS_NODIST='-g0 -Wl,-z,relro -Wl,-z,now -Wl,--strip-all -L/usr/lib/x86_64-linux-gnu' && \
-    export LINKCC='gcc' && \
-    export MAKEFLAGS="--silent --output-sync --no-print-directory --jobs ${__NPROC__}" && \
-    export OPT='-O2 -g0 -s -w -pipe -m64 -mtune=generic -fno-semantic-interposition -DNDEBUG -D_GNU_SOURCE -fPIC -fwrapv' && \
+    export CFLAGS="-O2 -g0 -s -w -pipe -fno-semantic-interposition -march=${__ARCH__} -mtune=generic -DNDEBUG -D_GNU_SOURCE" && \
+    export LDFLAGS='-g0 -fno-semantic-interposition -Wl,-z,relro -Wl,-z,now -Wl,--strip-all' && \
+    export MAKEFLAGS="--silent --no-print-directory --jobs ${__NPROC__}" && \
     export OS_CODENAME="$(. /etc/os-release; echo ${VERSION_CODENAME})" && \
     export PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 && \
     export TIMEFORMAT='=== time taken: %lR (s:%lS u:%lU)' ; \
@@ -48,8 +44,7 @@ RUN \
 # build structure
   echo '=== creating build structure ===' && \
   time { \
-    for folder in '/licenses'; do install --directory --owner="${__USER__}" --group="${__USER__}" --mode=0755 "${__BUILD_DIR__}${folder}"; done && \
-    for folder in '/tmp' "${__DATA_DIR__}"; do install --directory --owner="${__USER__}" --group="${__USER__}" --mode=1777 "${__BUILD_DIR__}${folder}"; done ; \
+    for folder in '/licenses'; do install --directory --owner="${__USER__}" --group="${__USER__}" --mode=0755 "${__BUILD_DIR__}${folder}"; done ; \
   } && \
 # dependencies
   echo '=== instaling dependencies ===' && \
@@ -74,7 +69,6 @@ RUN \
       libexpat1-dev \
       libffi6 \
       libffi-dev \
-      libgdbm-compat-dev \
       libgdbm-dev \
       liblzma-dev \
       libncurses-dev \
@@ -82,9 +76,11 @@ RUN \
       libsqlite3-dev \
       libssl-dev \
       make \
+      netbase \
       pkg-config \
       tar \
       tk-dev \
+      tzdata \
       uuid-dev \
       wget \
       xz-utils \
@@ -96,12 +92,11 @@ RUN \
   time { \
     debootstrap \
       --variant='minbase' \
-      --arch=amd64 \
-      --include=ca-certificates,curl,libbsd0,libbz2-1.0,libc6,libexpat1,libffi6,libfontconfig1,libfreetype6,libgcc1,libgdbm-compat4,libgdbm6,liblzma5,libncursesw6,libpng16-16,libreadline7,libsqlite3-0,libssl1.1,libstdc++6,libtcl8.6,libtinfo6,libtk8.6,libuuid1,libx11-6,libxau6,libxcb1,libxdmcp6,libxext6,libxft2,libxrender1,libxss1,tk8.6-blt2.5,zlib1g \
+      --include=ca-certificates,libbz2-1.0,libc6,libexpat1,libffi6,libgdbm6,liblzma5,libncursesw6,libreadline7,libsqlite3-0,libssl1.1,libtinfo6,libuuid1,netbase,tzdata,zlib1g \
       "${OS_CODENAME}" \
       "${__BUILD_DIR__}" && \
     install --directory --owner="${__USER__}" --group="${__USER__}" --mode=0755 "${__BUILD_DIR__}/licenses/debian" && \
-    (cd "${__BUILD_DIR__}/licenses/debian" && curl --silent --location --retry 3 --remote-name "http://ftp.debian.org/debian/doc/social-contract.txt") ; \
+    install --owner="${__USER__}" --group="${__USER__}" --mode=0644 --target-directory="${__BUILD_DIR__}/licenses/debian" /licenses/debian/social-contract.txt ; \
   } && \
 # copy tests
   echo '=== copying test files ===' && \
@@ -125,8 +120,7 @@ RUN \
       --exec_prefix="${_py_prefix_}" \
       --libexecdir="${_py_prefix_}/lib" \
       --with-computed-gotos \
-      --with-dbmliborder=gdbm:ndbm:bdb \
-      --with-ensurepip \
+      --with-ensurepip='install' \
       --with-lto \
       --with-ssl-default-suites='openssl' \
       --with-system-expat \
@@ -136,12 +130,11 @@ RUN \
       --enable-ipv6 \
       --enable-loadable-sqlite-extensions \
       --enable-optimizations \
-      --enable-option-checking='fatal' \
-      --enable-shared && \
-    make CFLAGS_NODIST="${CFLAGS_NODIST}" > /dev/null && \
+      --enable-option-checking='fatal' && \
+    make > /dev/null && \
     make DESTDIR="${__BUILD_DIR__}" install > /dev/null && \
-    find "${__BUILD_DIR__}${_py_prefix_}/lib/python${_py_version_}" -depth -type d -a \( -name 'test' -o -name 'tests' -o -name 'idle_test' -o -name '__pycache__' \) -exec rm -rf '{}' + && \
-    find "${__BUILD_DIR__}${_py_prefix_}/lib/python${_py_version_}" -depth -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name '*.bat' -o -name '*LICENSE*' \) -delete && \
+    find "${__BUILD_DIR__}${_py_prefix_}/lib" -depth -type d -a \( -name 'test' -o -name 'tests' -o -name 'idle_test' -o -name '__pycache__' \) -exec rm -rf '{}' + && \
+    find "${__BUILD_DIR__}${_py_prefix_}/lib" -depth -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name '*.bat' -o -name '*.a' -o -name '*LICENSE*' \) -delete && \
     for p in $(find "${__BUILD_DIR__}${_py_prefix_}/bin" -type f -name "*${_py_version_}*"); do \
       s="$(basename ${p})"; \
       t="${__BUILD_DIR__}${_py_prefix_}/bin/$(echo ${s} | sed -e "s/\(\|-\)${_py_version_}//")"; \
@@ -224,23 +217,24 @@ RUN \
 FROM scratch
 
 ARG __BUILD_DIR__
-ARG __DATA_DIR__
+ARG __WORK_DIR__
 
 LABEL \
   maintainer="Frederico Martins <https://hub.docker.com/u/fscm/>" \
   vendor="fscm" \
-  cmd="docker container run --interactive --rm --tty fscm/python:debian bash" \
-  params="--volume ./:${__DATA_DIR__}:rw"
+  cmd="docker container run --interactive --rm --tty fscm/python:debian" \
+  params="--volume ./:${__WORK_DIR__}:rw"
 
 ENV \
   LANG="C.UTF-8" \
   LC_ALL="C.UTF-8" \
+  DEBCONF_NONINTERACTIVE_SEEN="true" \
   DEBIAN_FRONTEND="noninteractive"
 
 COPY --from=build "${__BUILD_DIR__}" "/"
 
-VOLUME ["${__DATA_DIR__}"]
+VOLUME ["${__WORK_DIR__}"]
 
-WORKDIR "${__DATA_DIR__}"
+WORKDIR "${__WORK_DIR__}"
 
 CMD ["/bin/bash"]
