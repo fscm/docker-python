@@ -63,7 +63,7 @@ elif [ "xcentos" = "x${ID}" ] ; then
   fi
 
   printf '[TEST] Check package installation with yum... '
-  if (yum -y -q install less && less --version) > /dev/null 2>&1; then
+  if (dnf -y -q install less && less --version) > /dev/null 2>&1; then
     echo 'OK'
   else
     echo 'Failed'

@@ -1,26 +1,25 @@
 # global args
 ARG __BUILD_DIR__="/build"
-ARG __DATA_DIR__="/work"
+ARG __WORK_DIR__="/work"
 
 
 
-FROM fscm/centos:8 as build
+FROM fscm/centos:stream-8 as build
 
 ARG __BUILD_DIR__
-ARG __DATA_DIR__
-ARG PYTHON3_VERSION="3.8.5"
+ARG __WORK_DIR__
+ARG PYTHON3_VERSION="3.9.5"
 ARG __USER__="root"
-ARG __WORK_DIR__="/work"
 ARG __SOURCE_DIR__="${__WORK_DIR__}/src"
 
 ENV \
-  LANG="C.utf8" \
-  LC_ALL="C.utf8"
+  LANG="C.UTF-8" \
+  LC_ALL="C.UTF-8"
 
 USER ${__USER__}
 
 #COPY --chown="${__USER__}":${__USER__} "LICENSE" "files/" "${__WORK_DIR__}/"
-COPY "LICENSE" "files/" "${__WORK_DIR__}/"
+COPY "LICENSE" "files/" "${__WORK_DIR__}"/
 
 WORKDIR "${__WORK_DIR__}"
 
@@ -31,15 +30,11 @@ RUN \
   echo '=== setting build env ===' && \
   time { \
     set +h && \
+    export __ARCH__="$(arch | sed 's/_/-/g')" && \
     export __NPROC__="$(getconf _NPROCESSORS_ONLN || echo 1)" && \
-    export CFLAGS='-O2 -g0 -s -w -pipe -m64 -mtune=generic -fno-semantic-interposition -DNDEBUG -D_GNU_SOURCE -fPIC -fwrapv' && \
-    export CFLAGS_NODIST='-O2 -g0 -s -w -pipe -m64 -mtune=generic -fno-semantic-interposition -DNDEBUG -D_GNU_SOURCE -fPIC -fwrapv' && \
-    export CPPFLAGS='-I/usr/include/x86_64-linux-gnu' && \
-    export LDFLAGS='-g0 -Wl,-z,relro -Wl,-z,now -Wl,--strip-all -L/usr/lib/x86_64-linux-gnu' && \
-    export LDFLAGS_NODIST='-g0 -Wl,-z,relro -Wl,-z,now -Wl,--strip-all -L/usr/lib/x86_64-linux-gnu' && \
-    export LINKCC='gcc' && \
-    export MAKEFLAGS="--silent --output-sync --no-print-directory --jobs ${__NPROC__}" && \
-    export OPT='-O2 -g0 -s -w -pipe -m64 -mtune=generic -fno-semantic-interposition -DNDEBUG -D_GNU_SOURCE -fPIC -fwrapv' && \
+    export CFLAGS="-O2 -g0 -s -w -pipe -fno-semantic-interposition -march=${__ARCH__} -mtune=generic -DNDEBUG -D_GNU_SOURCE" && \
+    export LDFLAGS='-g0 -fno-semantic-interposition -Wl,-z,relro -Wl,-z,now -Wl,--strip-all' && \
+    export MAKEFLAGS="--silent --no-print-directory --jobs ${__NPROC__}" && \
     export OS_CODENAME="$(. /etc/os-release; echo ${VERSION_CODENAME})" && \
     export PKG_CONFIG_ALLOW_SYSTEM_CFLAGS=1 && \
     export TIMEFORMAT='=== time taken: %lR (s:%lS u:%lU)' ; \
@@ -47,22 +42,22 @@ RUN \
 # build structure
   echo '=== creating build structure ===' && \
   time { \
-    for folder in '/licenses'; do install --directory --owner="${__USER__}" --group="${__USER__}" --mode=0755 "${__BUILD_DIR__}${folder}"; done && \
-    for folder in '/tmp' "${__DATA_DIR__}"; do install --directory --owner="${__USER__}" --group="${__USER__}" --mode=1777 "${__BUILD_DIR__}${folder}"; done ; \
+    for folder in '/licenses'; do install --directory --owner="${__USER__}" --group="${__USER__}" --mode=0755 "${__BUILD_DIR__}${folder}"; done ; \
   } && \
 # dependencies
   echo '=== instaling dependencies ===' && \
   time { \
-    yum --assumeyes --quiet --setopt=install_weak_deps=False --enablerepo=PowerTools install \
+    dnf --assumeyes --quiet --setopt=install_weak_deps='no' --enablerepo='powertools' install \
       binutils \
       bluez-libs \
       bzip2-devel \
       ca-certificates \
-      centos-repos \
       coreutils-single \
       curl \
       dbus \
       device-mapper-persistent-data \
+      dnf \
+      dnf-plugins-core \
       expat-devel \
       findutils \
       gcc \
@@ -80,62 +75,53 @@ RUN \
       openssl-devel \
       pkg-config \
       readline-devel \
+      setup \
       sqlite-devel \
       tar \
       tk-devel \
+      tzdata \
       wget \
       xz \
       xz-devel \
-      yum \
-      yum-utils \
       zlib-devel ; \
   } && \
 # build base os
   echo '=== building base os ===' && \
   time { \
-    yumdownloader --assumeyes --quiet --arch="$(arch)" --destdir="${__WORK_DIR__}" centos-release && \
+    dnf download --assumeyes --quiet --arch="$(arch),noarch" --destdir="${__WORK_DIR__}" centos-stream-release && \
     rpm --root "${__BUILD_DIR__}" --initdb && \
     rpm --root "${__BUILD_DIR__}" --import /etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial && \
-    rpm --root "${__BUILD_DIR__}" --install --nodeps --noscripts "${__WORK_DIR__}"/centos-release*.rpm && \
-    yum --assumeyes --quiet --disablerepo='*' --enablerepo='BaseOS' --enablerepo='AppStream' --installroot="${__BUILD_DIR__}" --setopt='tsflags=nodocs' --setopt='install_weak_deps=False' --setopt='override_install_langs=C.utf8' install \
+    rpm --root "${__BUILD_DIR__}" --install --nodeps --noscripts "${__WORK_DIR__}"/centos-stream-release*.rpm && \
+    dnf --assumeyes --quiet --disablerepo='*' --enablerepo='baseos' --enablerepo='appstream' --installroot="${__BUILD_DIR__}" --setopt=tsflags='nodocs' --setopt=install_weak_deps='no' install \
       bash \
       bzip2-libs \
       ca-certificates \
-      centos-repos \
+      centos-*repos \
       coreutils-single \
-      curl \
+      dnf \
       expat \
-      fontconfig \
-      freetype \
       gdbm-libs \
       glibc \
       glibc-minimal-langpack \
+      hostname \
       keyutils-libs \
       krb5-libs \
-      hostname \
-      libX11 \
-      libXau \
-      libXft \
-      libXrender \
       libcom_err \
       libffi \
       libnsl2 \
-      libpng \
       libselinux \
       libtirpc \
       libuuid \
-      libxcb \
       libxcrypt \
       ncurses-libs \
       openssl-libs \
       pcre2 \
       readline \
+      setup \
       sqlite-libs \
       tar \
-      tcl \
-      tk \
+      tzdata \
       xz-libs \
-      yum \
       zlib && \
     install --directory --owner="${__USER__}" --group="${__USER__}" --mode=0755 "${__BUILD_DIR__}/licenses/centos" && \
     ln --symbolic --force '/usr/share/centos-release/EULA' "${__BUILD_DIR__}/licenses/centos/EULA" ; \
@@ -161,8 +147,7 @@ RUN \
       --exec_prefix="${_py_prefix_}" \
       --libexecdir="${_py_prefix_}/lib" \
       --with-computed-gotos \
-      --with-dbmliborder=gdbm:ndbm:bdb \
-      --with-ensurepip \
+      --with-ensurepip='install' \
       --with-lto \
       --with-ssl-default-suites='openssl' \
       --with-system-expat \
@@ -172,12 +157,11 @@ RUN \
       --enable-ipv6 \
       --enable-loadable-sqlite-extensions \
       --enable-optimizations \
-      --enable-option-checking='fatal' \
-      --enable-shared && \
-    make CFLAGS_NODIST="${CFLAGS_NODIST}" > /dev/null && \
+      --enable-option-checking='fatal' && \
+    make > /dev/null && \
     make DESTDIR="${__BUILD_DIR__}" install > /dev/null && \
-    find "${__BUILD_DIR__}${_py_prefix_}/lib/python${_py_version_}" -depth -type d -a \( -name 'test' -o -name 'tests' -o -name 'idle_test' -o -name '__pycache__' \) -exec rm -rf '{}' + && \
-    find "${__BUILD_DIR__}${_py_prefix_}/lib/python${_py_version_}" -depth -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name '*.bat' -o -name '*LICENSE*' \) -delete && \
+    find "${__BUILD_DIR__}${_py_prefix_}/lib" -depth -type d -a \( -name 'test' -o -name 'tests' -o -name 'idle_test' -o -name '__pycache__' \) -exec rm -rf '{}' + && \
+    find "${__BUILD_DIR__}${_py_prefix_}/lib" -depth -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name '*.bat' -o -name '*.a' -o -name '*LICENSE*' \) -delete && \
     for p in $(find "${__BUILD_DIR__}${_py_prefix_}/bin" -type f -name "*${_py_version_}*"); do \
       s="$(basename ${p})"; \
       t="${__BUILD_DIR__}${_py_prefix_}/bin/$(echo ${s} | sed -e "s/\(\|-\)${_py_version_}//")"; \
@@ -206,11 +190,10 @@ RUN \
 # system settings / cleanup
   echo '=== system settings / cleaning up ===' && \
   time { \
-    sed -i -e '/best=True/a exclude=*.i?86\ntsflags=nodocs' "${__BUILD_DIR__}/etc/yum.conf" && \
-    echo '' > "${__BUILD_DIR__}/etc/resolv.conf" && \
-    echo 'host' > "${__BUILD_DIR__}/etc/hostname" && \
+    find "${__BUILD_DIR__}/lib/python"* "${__BUILD_DIR__}/lib64/python"* -depth -type d -a \( -name 'test' -o -name 'tests' -o -name 'idle_test' -o -name '__pycache__' \) -exec rm -rf '{}' + && \
+    find "${__BUILD_DIR__}/lib/python"* "${__BUILD_DIR__}/lib64/python"* -depth -type f -a \( -name '*.pyc' -o -name '*.pyo' -o -name '*.bat' -o -name '*.a' -o -name '*LICENSE*' \) -delete && \
+    sed -i -e '/best=True/a exclude=*.i?86\ntsflags=nodocs' "${__BUILD_DIR__}/etc/dnf/dnf.conf" && \
     echo 'container' > "${__BUILD_DIR__}/etc/dnf/vars/infra" && \
-    #echo 'docker' > "${__BUILD_DIR__}/run/systemd/container" && \
     echo '%_install_langs C.utf8' > "${__BUILD_DIR__}/etc/rpm/macros.image-language-conf" && \
     :> "${__BUILD_DIR__}/etc/machine-id" && \
     find "${__BUILD_DIR__}/lib/systemd/system" -path '*/sysinit.target.wants/*' \( -type l -o -type f \) -not -name 'systemd-tmpfiles-setup.service' -delete && \
@@ -240,10 +223,10 @@ RUN \
     find "${__BUILD_DIR__}/usr/share/i18n/locales" -mindepth 1 -maxdepth 1 -not -name 'en_US' -exec rm -r {} + && \
     find "${__BUILD_DIR__}/usr/lib64/gconv" -mindepth 1 -maxdepth 1 -type f -not -name 'UTF*' -delete && \
     find "${__BUILD_DIR__}/usr/share/locale" -mindepth 1 -maxdepth 1 -type d -not \( -name 'en' -o -name 'en_US' \) -exec rm -r {} + && \
-    find "${__BUILD_DIR__}/usr/share/doc" -mindepth 1 -not -type d -not \( -iname 'COPYING*' -o -iname 'GPL' -o -iname '*LICENSE*' -o -iname 'copyright' \) -delete && \
+    find "${__BUILD_DIR__}/usr/share/doc" -mindepth 1 -not -type d -not \( -name 'COPYING*' -o -name 'GPL' -o -name '*LICENSE*' \) -delete && \
     find "${__BUILD_DIR__}/usr/share/doc" -mindepth 1 -type d -empty -delete && \
     find "${__BUILD_DIR__}/var/cache" -type f -delete && \
-    find "${__BUILD_DIR__}/etc/yum.repos.d" -not \( -iname '*base*' -o -iname '*appstream*' -o -iname '*extras*' -o -iname '*powertools*' -o -iname '*centosplus*' \) -type f -delete ; \
+    find "${__BUILD_DIR__}/etc/yum.repos.d" \( -iname '*debuginfo*' -o -iname '*media*' \) -type f -delete ; \
   } && \
 # licenses
   echo '=== project licenses ===' && \
@@ -258,13 +241,13 @@ RUN \
 FROM scratch
 
 ARG __BUILD_DIR__
-ARG __DATA_DIR__
+ARG __WORK_DIR__
 
 LABEL \
   maintainer="Frederico Martins <https://hub.docker.com/u/fscm/>" \
   vendor="fscm" \
-  cmd="docker container run --interactive --rm --tty fscm/python:centos bash" \
-  params="--volume ./:${__DATA_DIR__}:rw"
+  cmd="docker container run --interactive --rm --tty fscm/python:centos" \
+  params="--volume ./:${__WORK_DIR__}:rw"
 
 ENV \
   LANG="C.utf8" \
@@ -272,8 +255,8 @@ ENV \
 
 COPY --from=build "${__BUILD_DIR__}" "/"
 
-VOLUME ["${__DATA_DIR__}"]
+VOLUME ["${__WORK_DIR__}"]
 
-WORKDIR "${__DATA_DIR__}"
+WORKDIR "${__WORK_DIR__}"
 
 CMD ["/bin/bash"]
